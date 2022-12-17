@@ -1,0 +1,68 @@
+const express = require('express');
+const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+const path = require('path');
+
+// Set the view engine to ejs
+app.set('view engine', 'ejs');
+
+// Set the directory for views
+app.set('views', path.join(__dirname, 'views'));
+
+// Set the directory for static assets
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Set the route for the login form
+app.get('/', (req, res) => {
+  res.render('login');
+});
+
+// Set the route for the chat room
+app.get('/chat', (req, res) => {
+  res.render('chat');
+});
+
+// Set the socket connection
+io.on('connection', (socket) => {
+  // Set the username for the socket connection
+  socket.username = '';
+
+  // Set the event for a new user joining the chat
+  socket.on('new user', (username) => {
+    // Set the username for the socket connection
+    socket.username = username;
+
+    // Broadcast the event to all other sockets
+    socket.broadcast.emit('user joined', {
+      username: socket.username,
+      status: 'online'
+    });
+  });
+
+  // Set the event for a user sending a message
+  socket.on('send message', (message) => {
+    // Broadcast the event to all sockets
+    io.emit('new message', {
+      username: socket.username,
+      message: message
+    });
+  });
+
+  // Set the event for a user disconnecting from the chat
+  socket.on('disconnect', () => {
+    // Broadcast the event to all other sockets
+    socket.broadcast.emit('user left', {
+      username: socket.username,
+      status: 'offline'
+    });
+  });
+});
+
+// Set the port for the server to listen on
+const port = process.env.PORT || 3000;
+
+// Start the server
+http.listen(port, () => {
+  console.log(`Listening on port ${port}`);
+});
